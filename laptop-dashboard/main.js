@@ -1,11 +1,19 @@
-import {createClient} from 'https://esm.sh/@supabase/supabase-js@2';
-
 // Use your existing project values. Anon key is safe for client-side use.
 const SUPABASE_URL = 'https://ljgeeobucxiwcneddsxu.supabase.co';
 const SUPABASE_ANON_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqZ2Vlb2J1Y3hpd2NuZWRkc3h1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxNjY1MDksImV4cCI6MjA5MDc0MjUwOX0.jOLbE5XAjlqAmTkTmGBlxvQdC-KoMod2APOxOUGbo4Y';
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+  throw new Error('Supabase client failed to load. Check network or CDN access.');
+}
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+});
 
 const loginSection = document.getElementById('loginSection');
 const dashboardSection = document.getElementById('dashboardSection');
@@ -19,6 +27,7 @@ const totalParticipantsEl = document.getElementById('totalParticipants');
 const attendanceTodayEl = document.getElementById('attendanceToday');
 const foodTodayEl = document.getElementById('foodToday');
 const bundleTodayEl = document.getElementById('bundleToday');
+const loginSubmitBtn = loginForm?.querySelector('button[type="submit"]');
 
 function getCurrentManilaDate() {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -56,7 +65,7 @@ function showDashboard(visible) {
 async function fetchCounts() {
   const date = getCurrentManilaDate();
 
-  const [{count: totalParticipants}, {count: attendanceCount}, {count: foodCount}, {count: bundleCount}] =
+  const [participantsRes, attendanceRes, foodRes, bundleRes] =
     await Promise.all([
       supabase.from('participants').select('*', {count: 'exact', head: true}),
       supabase.from('attendance_records').select('*', {count: 'exact', head: true}).eq('attendance_date', date),
@@ -64,10 +73,20 @@ async function fetchCounts() {
       supabase.from('bundle_choices').select('*', {count: 'exact', head: true}).eq('choice_date', date),
     ]);
 
-  totalParticipantsEl.textContent = String(totalParticipants ?? 0);
-  attendanceTodayEl.textContent = String(attendanceCount ?? 0);
-  foodTodayEl.textContent = String(foodCount ?? 0);
-  bundleTodayEl.textContent = String(bundleCount ?? 0);
+  if (participantsRes.error || attendanceRes.error || foodRes.error || bundleRes.error) {
+    throw new Error(
+      participantsRes.error?.message ||
+        attendanceRes.error?.message ||
+        foodRes.error?.message ||
+        bundleRes.error?.message ||
+        'Failed to load counters.',
+    );
+  }
+
+  totalParticipantsEl.textContent = String(participantsRes.count ?? 0);
+  attendanceTodayEl.textContent = String(attendanceRes.count ?? 0);
+  foodTodayEl.textContent = String(foodRes.count ?? 0);
+  bundleTodayEl.textContent = String(bundleRes.count ?? 0);
 }
 
 function typePill(type) {
@@ -99,6 +118,12 @@ async function fetchRecentActivity() {
       .order('created_at', {ascending: false})
       .limit(25),
   ]);
+
+  if (attendanceRes.error || foodRes.error || bundleRes.error) {
+    throw new Error(
+      attendanceRes.error?.message || foodRes.error?.message || bundleRes.error?.message || 'Failed to load activity.',
+    );
+  }
 
   const activity = [];
 
@@ -162,8 +187,12 @@ async function fetchRecentActivity() {
 }
 
 async function refreshAll() {
-  await Promise.all([fetchCounts(), fetchRecentActivity()]);
-  lastUpdated.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+  try {
+    await Promise.all([fetchCounts(), fetchRecentActivity()]);
+    lastUpdated.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+  } catch (error) {
+    lastUpdated.textContent = error instanceof Error ? error.message : 'Failed to refresh dashboard.';
+  }
 }
 
 let realtimeChannel = null;
@@ -181,24 +210,45 @@ function startRealtime() {
     .subscribe();
 }
 
+function setLoginLoading(isLoading) {
+  if (!loginSubmitBtn) {
+    return;
+  }
+
+  loginSubmitBtn.disabled = isLoading;
+  loginSubmitBtn.textContent = isLoading ? 'Signing in...' : 'Launch Dashboard';
+}
+
 loginForm.addEventListener('submit', async event => {
   event.preventDefault();
 
   const email = document.getElementById('emailInput').value.trim();
   const password = document.getElementById('passwordInput').value;
 
-  setStatus('Signing in...');
-
-  const {error} = await supabase.auth.signInWithPassword({email, password});
-  if (error) {
-    setStatus(error.message, true);
+  if (!email || !password) {
+    setStatus('Please enter both email and password.', true);
     return;
   }
 
-  setStatus('Login successful.');
-  showDashboard(true);
-  await refreshAll();
-  startRealtime();
+  setStatus('Signing in...');
+  setLoginLoading(true);
+
+  try {
+    const {error} = await supabase.auth.signInWithPassword({email, password});
+    if (error) {
+      setStatus(error.message, true);
+      return;
+    }
+
+    setStatus('Login successful.');
+    showDashboard(true);
+    await refreshAll();
+    startRealtime();
+  } catch (error) {
+    setStatus(error instanceof Error ? error.message : 'Login failed.', true);
+  } finally {
+    setLoginLoading(false);
+  }
 });
 
 logoutBtn.addEventListener('click', async () => {
@@ -212,13 +262,26 @@ logoutBtn.addEventListener('click', async () => {
 });
 
 async function init() {
-  const {data} = await supabase.auth.getSession();
-  const loggedIn = Boolean(data.session);
+  const {data, error} = await supabase.auth.getSession();
+  if (error) {
+    setStatus(error.message, true);
+  }
+
+  const loggedIn = Boolean(data?.session);
   showDashboard(loggedIn);
   if (loggedIn) {
     await refreshAll();
     startRealtime();
   }
 }
+
+supabase.auth.onAuthStateChange(async (_event, session) => {
+  const loggedIn = Boolean(session);
+  showDashboard(loggedIn);
+  if (loggedIn) {
+    await refreshAll();
+    startRealtime();
+  }
+});
 
 init();

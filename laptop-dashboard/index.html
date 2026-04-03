@@ -13,80 +13,99 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div class="background-glow top"></div>
-    <div class="background-glow bottom"></div>
+    <div class="hero-grid"></div>
+    <div class="orb orb-main"></div>
+    <div class="orb orb-left"></div>
+    <div class="orb orb-right"></div>
 
-    <main class="app-shell">
-      <header class="app-header glass">
-        <div>
-          <p class="eyebrow">PACSMin Admin</p>
-          <h1>Laptop Live Dashboard</h1>
-          <p class="subtitle">Realtime attendance, food, and bundle updates from mobile scans.</p>
-        </div>
-        <button id="logoutBtn" class="btn secondary hidden" type="button">Logout</button>
-      </header>
+    <header class="genie-topbar">
+      <div class="logo">
+        <svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+          <line x1="12" y1="22.08" x2="12" y2="12"></line>
+        </svg>
+        PACSMin <span style="font-weight: 400; opacity: 0.7">Admin</span>
+      </div>
+      <div class="topbar-actions">
+        <button id="logoutBtn" class="btn ghost hidden" type="button">Logout</button>
+      </div>
+    </header>
 
-      <section id="loginSection" class="panel glass">
-        <h2>Admin Login</h2>
-        <p class="panel-copy">Use the same Supabase admin account as your mobile app.</p>
-        <form id="loginForm" class="form-grid">
-          <label>
-            <span>Email</span>
-            <input id="emailInput" type="email" placeholder="admin@email.com" required />
-          </label>
-          <label>
-            <span>Password</span>
-            <input id="passwordInput" type="password" placeholder="Password" required />
-          </label>
-          <button class="btn primary" type="submit">Login</button>
-        </form>
+    <section id="loginSection" class="genie-hero">
+      <h1 class="genie-title">Command Center</h1>
+      <p class="genie-subtitle">Interactive live data. Synced in real-time.</p>
+
+      <form id="loginForm" class="genie-login-form" novalidate>
+        <input id="emailInput" type="email" placeholder="admin@email.com" />
+        <input id="passwordInput" type="password" placeholder="Password" />
+        <button class="btn primary genie-btn" type="submit">Launch Dashboard</button>
         <p id="loginStatus" class="status"></p>
-      </section>
+      </form>
 
-      <section id="dashboardSection" class="hidden">
-        <div class="cards-grid">
-          <article class="metric-card glass">
-            <p>Total Participants</p>
-            <h3 id="totalParticipants">0</h3>
-          </article>
-          <article class="metric-card glass">
-            <p>Attendance Today</p>
-            <h3 id="attendanceToday">0</h3>
-          </article>
-          <article class="metric-card glass">
-            <p>Food Today</p>
-            <h3 id="foodToday">0</h3>
-          </article>
-          <article class="metric-card glass">
-            <p>Bundle Today</p>
-            <h3 id="bundleToday">0</h3>
-          </article>
+      <div class="genie-footer-links">
+        <p>How do I get access?</p>
+        <a href="#">Explore PACSMin Docs. See FAQ.</a>
+      </div>
+    </section>
+
+    <main id="dashboardSection" class="app-shell hidden">
+      <div class="dashboard-header">
+        <h2 class="genie-title dashboard-title">Live Overview</h2>
+        <p class="genie-subtitle">Monitoring event metrics in real-time.</p>
+      </div>
+
+      <div class="cards-grid">
+        <article class="metric-card glass">
+          <p>Total Participants</p>
+          <h3 id="totalParticipants">0</h3>
+        </article>
+        <article class="metric-card glass">
+          <p>Attendance Today</p>
+          <h3 id="attendanceToday">0</h3>
+        </article>
+        <article class="metric-card glass">
+          <p>Food Today</p>
+          <h3 id="foodToday">0</h3>
+        </article>
+        <article class="metric-card glass">
+          <p>Bundle Today</p>
+          <h3 id="bundleToday">0</h3>
+        </article>
+      </div>
+
+      <section class="activity-panel glass">
+        <div class="panel-title-row">
+          <h2>Recent Activity</h2>
+          <p id="lastUpdated">Waiting for updates...</p>
         </div>
-
-        <section class="panel glass">
-          <div class="panel-title-row">
-            <h2>Recent Activity</h2>
-            <p id="lastUpdated">Waiting for updates...</p>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Time</th>
-                  <th>Type</th>
-                  <th>UID</th>
-                  <th>Name</th>
-                  <th>Society</th>
-                  <th>Detail</th>
-                </tr>
-              </thead>
-              <tbody id="recentBody"></tbody>
-            </table>
-          </div>
-        </section>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Type</th>
+                <th>UID</th>
+                <th>Name</th>
+                <th>Society</th>
+                <th>Detail</th>
+              </tr>
+            </thead>
+            <tbody id="recentBody"></tbody>
+          </table>
+        </div>
       </section>
     </main>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script type="module" src="./main.js"></script>
   </body>
 </html>
