@@ -1,7 +1,12 @@
+import {Platform} from 'react-native';
+
+const primarySans = Platform.select({
+  ios: 'System',
+  android: 'sans-serif',
+  default: 'sans-serif',
+}) as string;
+
 export const typography = {
-  /**
-   * Primary app font.
-   * Ensure `toxigenesis bd.otf` is present in assets/fonts and linked.
-   */
-  serif: 'toxigenesis bd',
+  // Kept as `serif` for compatibility with existing screen styles.
+  serif: primarySans,
 } as const;

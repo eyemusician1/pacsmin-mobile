@@ -2,9 +2,9 @@ import React from 'react';
 import {StyleSheet} from 'react-native';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import {HomeScreen}    from '../screens/Food';
-import {ExploreScreen} from '../screens/Attendance';
-import {ProfileScreen} from '../screens/Bundle';
+import {HomeScreen as AttendanceScreen} from '../screens/Attendance';
+import {ExploreScreen as FoodScreen} from '../screens/Food';
+import {ProfileScreen as BundleScreen} from '../screens/Bundle';
 import {palette, spacing, typography} from '../tokens';
 
 const Tab = createBottomTabNavigator();
@@ -23,7 +23,7 @@ export function AppNavigator() {
       }}>
       <Tab.Screen
         name="Attendance"
-        component={HomeScreen}
+        component={AttendanceScreen}
         options={{
           tabBarIcon: ({color, size, focused}) => (
             <Ionicons
@@ -36,7 +36,7 @@ export function AppNavigator() {
       />
       <Tab.Screen
         name="Food"
-        component={ExploreScreen}
+        component={FoodScreen}
         options={{
           tabBarIcon: ({color, size, focused}) => (
             <Ionicons
@@ -49,7 +49,7 @@ export function AppNavigator() {
       />
       <Tab.Screen
         name="Bundle"
-        component={ProfileScreen}
+        component={BundleScreen}
         options={{
           tabBarIcon: ({color, size, focused}) => (
             <Ionicons

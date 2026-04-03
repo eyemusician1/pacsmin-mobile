@@ -1,10 +1,10 @@
 export const palette = {
-  bg:         '#eef1f7',
-  surface:    '#ffffff',
-  ink:        '#0e1a5f',
-  body:       '#24327f',
-  muted:      '#6f79a8',
-  terracotta: '#142a96',
-  border:     'rgba(20,42,150,0.14)',
-  white:      '#ffffff',
+  bg:         '#f8f1e8',
+  surface:    '#fff8ef',
+  ink:        '#4f0d17',
+  body:       '#6a1623',
+  muted:      '#9f7e56',
+  terracotta: '#7b111f',
+  border:     'rgba(123,17,31,0.16)',
+  white:      '#fffaf3',
 } as const;

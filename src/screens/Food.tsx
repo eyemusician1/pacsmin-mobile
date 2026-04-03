@@ -1,75 +1,234 @@
-import React from 'react';
-import {Pressable, StyleSheet, Text, View} from 'react-native';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
+import {
+  ActivityIndicator,
+  Modal,
+  PermissionsAndroid,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import {Camera, CameraType} from 'react-native-camera-kit';
+import {
+  getAttendanceSummary,
+  recordAttendanceByUid,
+  resolveUidFromScan,
+  type AttendanceSummary,
+} from '../services/attendance';
 import {spacing, typography} from '../tokens';
 
-// Colors inferred from the PACSMin logo
 const newPalette = {
-  bg: '#F7F8FC', // General background
-  card: '#FFFFFF', // Card background
-  accent: '#012D73', // Main dark blue from the logo
-  muted: '#A0B3C1', // Muted light blue for labels/subtext
-  surface: '#EDF1F6', // Surface color for alternative cards/buttons
-  text: '#012D73', // Primary text
-  buttonText: '#FFFFFF', // Button text
+  bg: '#F8F1E8',
+  card: '#FFFAF3',
+  accent: '#7B111F',
+  muted: '#9F7E56',
+  surface: '#F4E2C8',
+  text: '#4F0D17',
+  buttonText: '#FFF8EF',
 };
 
-export function HomeScreen() {
+export function ExploreScreen() {
+  const [showScannerModal, setShowScannerModal] = useState(false);
+  const [showUidModal, setShowUidModal] = useState(false);
+  const [uidInput, setUidInput] = useState('');
+  const [isRecording, setIsRecording] = useState(false);
+  const [lastScanText, setLastScanText] = useState('Scan a participant to see their food choice.');
+  const [summary, setSummary] = useState<AttendanceSummary>({
+    totalParticipants: 0,
+    present: 0,
+    absent: 0,
+    morning: 0,
+    afternoon: 0,
+  });
+
+  const scanLockRef = useRef(false);
+
+  const loadSummary = useCallback(async () => {
+    try {
+      const next = await getAttendanceSummary();
+      setSummary(next);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load records.';
+      setLastScanText(message);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSummary();
+  }, [loadSummary]);
+
+  const processUid = useCallback(
+    async (rawValue: string) => {
+      const uid = resolveUidFromScan(rawValue);
+      if (!uid || scanLockRef.current) {
+        return;
+      }
+
+      scanLockRef.current = true;
+      setIsRecording(true);
+
+      try {
+        const result = await recordAttendanceByUid(uid);
+        const label = result.status === 'recorded' ? 'Recorded' : 'Already marked';
+        setLastScanText(`${label}: ${result.fullName} (${result.uid})`);
+        await loadSummary();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to record UID.';
+        setLastScanText(message);
+      } finally {
+        setIsRecording(false);
+        setTimeout(() => {
+          scanLockRef.current = false;
+        }, 900);
+      }
+    },
+    [loadSummary],
+  );
+
+  const openScanner = async () => {
+    if (Platform.OS === 'android') {
+      const granted = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA);
+      if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+        setLastScanText('Camera permission denied.');
+        return;
+      }
+    }
+
+    setShowScannerModal(true);
+  };
+
+  const submitManualUid = async () => {
+    const value = uidInput.trim();
+    if (!value) {
+      return;
+    }
+
+    setShowUidModal(false);
+    setUidInput('');
+    await processUid(value);
+  };
+
   return (
     <View style={styles.root}>
-      {/* Ambient Background Orbs - Tinted Blue */}
+      {/* Ambient Background Orbs */}
       <View style={styles.bgOrbTop} />
       <View style={styles.bgOrbBottom} />
 
       <View style={styles.container}>
-        {/* Bento Block 1: Header */}
+        {/* Header Bento */}
         <View style={[styles.bentoCard, styles.headerSection]}>
-          <Text style={styles.heroEyebrow}>PACSMin Admin</Text>
-          <Text style={styles.title}>Attendance</Text>
+          <Text style={styles.heroEyebrow}>Food Tracker</Text>
+          <Text style={styles.title}>Food Choice</Text>
           <Text style={styles.sub}>
-            Scan participant QR codes and sync live updates to your dashboard.
+            Quickly verify each participant's meal preference while checking tickets.
           </Text>
         </View>
 
-        {/* Bento Block 2: Main Actions (Asymmetrical Row) */}
+        {/* Actions Bento Row (Asymmetrical) */}
         <View style={styles.actionSection}>
-          <Pressable style={[styles.bentoCard, styles.actionPrimary]}>
-            <Text style={styles.actionPrimaryText}>Start Scan</Text>
+          <Pressable
+            onPress={openScanner}
+            disabled={isRecording}
+            style={[styles.bentoCard, styles.actionPrimary, isRecording && styles.actionDisabled]}>
+            <Text style={styles.actionPrimaryText}>Scan QR</Text>
           </Pressable>
-          <Pressable style={[styles.bentoCard, styles.actionSecondary]}>
+          <Pressable
+            onPress={() => setShowUidModal(true)}
+            disabled={isRecording}
+            style={[styles.bentoCard, styles.actionSecondary, isRecording && styles.actionDisabled]}>
             <Text style={styles.actionSecondaryText}>Enter UID</Text>
           </Pressable>
         </View>
 
-        {/* Bento Block 3: Stats Grid (2x2 Flex Matrix) */}
-        <View style={styles.statSection}>
-          <View style={styles.bentoRow}>
-            <View style={[styles.bentoCard, styles.statCard, styles.statCardHighlight]}>
-              <Text style={styles.statLabel}>Present</Text>
-              <Text style={styles.statValue}>0</Text>
-            </View>
-            <View style={[styles.bentoCard, styles.statCard]}>
-              <Text style={styles.statLabel}>Absent</Text>
-              <Text style={styles.statValue}>0</Text>
-            </View>
-          </View>
-          <View style={styles.bentoRow}>
-            <View style={[styles.bentoCard, styles.statCard]}>
-              <Text style={styles.statLabel}>Morning</Text>
-              <Text style={styles.statValue}>0</Text>
-            </View>
-            <View style={[styles.bentoCard, styles.statCard]}>
-              <Text style={styles.statLabel}>Afternoon</Text>
-              <Text style={styles.statValue}>0</Text>
-            </View>
-          </View>
+        {/* Result Bento */}
+        <View style={[styles.bentoCard, styles.resultSection]}>
+          <Text style={styles.sectionTitle}>Latest Result</Text>
+          <Text style={styles.emptyText}>{lastScanText}</Text>
         </View>
 
-        {/* Bento Block 4: Recent List */}
-        <View style={[styles.bentoCard, styles.listSection]}>
-          <Text style={styles.listTitle}>Recent Scans</Text>
-          <Text style={styles.emptyText}>No scan data yet.</Text>
+        {/* Counter Bento */}
+        <View style={[styles.bentoCard, styles.counterSection]}>
+          <Text style={styles.sectionTitle}>Scanned Session</Text>
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{summary.morning + summary.afternoon} records</Text>
+          </View>
         </View>
       </View>
+
+      <Modal
+        visible={showScannerModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowScannerModal(false)}>
+        <View style={styles.scannerBackdrop}>
+          <View style={styles.scannerCard}>
+            <View style={styles.scannerTopRow}>
+              <Text style={styles.scannerTitle}>Scan QR</Text>
+              <Pressable onPress={() => setShowScannerModal(false)} style={styles.scannerCloseBtn}>
+                <Text style={styles.scannerCloseIcon}>x</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.scannerViewport}>
+              <Camera
+                style={styles.camera}
+                cameraType={CameraType.Back}
+                scanBarcode
+                showFrame
+                frameColor={newPalette.buttonText}
+                laserColor={newPalette.buttonText}
+                onReadCode={event => {
+                  const value = event.nativeEvent.codeStringValue;
+                  if (!value) {
+                    return;
+                  }
+                  setShowScannerModal(false);
+                  void processUid(value);
+                }}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showUidModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowUidModal(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Enter UID</Text>
+            <TextInput
+              value={uidInput}
+              onChangeText={setUidInput}
+              autoCapitalize="none"
+              autoCorrect={false}
+              placeholder="Type UID"
+              placeholderTextColor={newPalette.muted}
+              style={styles.uidInput}
+            />
+
+            <View style={styles.modalActions}>
+              <Pressable style={[styles.modalBtn, styles.modalBtnGhost]} onPress={() => setShowUidModal(false)}>
+                <Text style={styles.modalBtnGhostText}>Cancel</Text>
+              </Pressable>
+              <Pressable style={[styles.modalBtn, styles.modalBtnPrimary]} onPress={submitManualUid}>
+                <Text style={styles.modalBtnPrimaryText}>Submit</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {isRecording && (
+        <View style={styles.recordingIndicator}>
+          <ActivityIndicator color={newPalette.buttonText} />
+          <Text style={styles.recordingIndicatorText}>Saving scan...</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -79,13 +238,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: newPalette.bg,
   },
-  // Ambient Orbs
   bgOrbTop: {
     position: 'absolute',
     width: 220,
     height: 220,
     borderRadius: 110,
-    backgroundColor: 'rgba(1, 45, 115, 0.08)',
+    backgroundColor: 'rgba(123, 17, 31, 0.10)',
     top: -70,
     right: -40,
   },
@@ -94,7 +252,7 @@ const styles = StyleSheet.create({
     width: 180,
     height: 180,
     borderRadius: 90,
-    backgroundColor: 'rgba(1, 45, 115, 0.05)',
+    backgroundColor: 'rgba(190, 145, 85, 0.14)',
     bottom: 80,
     left: -50,
   },
@@ -106,46 +264,48 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
 
-  // Base Bento Card Style
+  // Base Bento Card
   bentoCard: {
     backgroundColor: newPalette.card,
-    borderColor: 'rgba(0, 0, 0, 0.06)',
+    borderColor: 'rgba(123, 17, 31, 0.14)',
     borderWidth: 1,
     borderRadius: 24,
-    shadowColor: '#1a2f60',
+    shadowColor: '#5C0F1A',
     shadowOpacity: 0.08,
     shadowRadius: 10,
     shadowOffset: {width: 0, height: 4},
     elevation: 2,
-  },
-  bentoRow: {
-    flex: 1,
-    flexDirection: 'row',
-    gap: spacing.md,
+    padding: spacing.xl,
   },
 
-  // Section Layouts (Flex weights balance the vertical screen space)
+  // Flex Layout Sections
   headerSection: {
     flex: 1.1,
     justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
   },
   actionSection: {
     flex: 1.2,
     flexDirection: 'row',
     gap: spacing.md,
+    padding: 0, // Reset padding for row
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    elevation: 0,
+    shadowOpacity: 0,
   },
-  statSection: {
-    flex: 1.6,
-    gap: spacing.md,
+  actionDisabled: {
+    opacity: 0.7,
   },
-  listSection: {
+  resultSection: {
+    flex: 1.1,
+    justifyContent: 'center',
+  },
+  counterSection: {
     flex: 0.8,
     justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
   },
 
-  // Header Details
+  // Text Styles
   heroEyebrow: {
     color: newPalette.accent,
     fontFamily: typography.serif,
@@ -160,6 +320,7 @@ const styles = StyleSheet.create({
     fontSize: 34,
     lineHeight: 40,
     fontFamily: typography.serif,
+    fontWeight: '800',
     marginBottom: spacing.xs,
   },
   sub: {
@@ -168,14 +329,26 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 20,
   },
+  sectionTitle: {
+    color: newPalette.text,
+    fontFamily: typography.serif,
+    fontWeight: '800',
+    fontSize: 20,
+    marginBottom: spacing.sm,
+  },
+  emptyText: {
+    color: newPalette.muted,
+    fontFamily: typography.serif,
+    fontSize: 15,
+  },
 
   // Action Buttons
   actionPrimary: {
-    flex: 1.3, // Asymmetrical width
+    flex: 1.3,
     backgroundColor: newPalette.accent,
-    borderWidth: 0,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 0,
   },
   actionPrimaryText: {
     color: newPalette.buttonText,
@@ -188,6 +361,7 @@ const styles = StyleSheet.create({
     backgroundColor: newPalette.surface,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 0,
   },
   actionSecondaryText: {
     color: newPalette.text,
@@ -196,44 +370,154 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 
-  // Stats Grid
-  statCard: {
-    flex: 1,
+  // Custom Badge
+  badge: {
+    alignSelf: 'flex-start',
     backgroundColor: newPalette.surface,
-    borderColor: 'rgba(1, 45, 115, 0.12)', // Light blue border mapping
+    borderColor: 'rgba(123, 17, 31, 0.18)',
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  badgeText: {
+    color: newPalette.text,
+    fontFamily: typography.serif,
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(79, 13, 23, 0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  modalCard: {
+    width: '100%',
+    backgroundColor: newPalette.card,
+    borderWidth: 1,
+    borderColor: 'rgba(123, 17, 31, 0.16)',
+    borderRadius: 24,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  modalTitle: {
+    color: newPalette.text,
+    fontFamily: typography.serif,
+    fontWeight: '800',
+    fontSize: 24,
+    textAlign: 'center',
+  },
+  uidInput: {
+    borderWidth: 1,
+    borderColor: 'rgba(123, 17, 31, 0.2)',
+    borderRadius: 14,
+    backgroundColor: newPalette.surface,
+    color: newPalette.text,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontFamily: typography.serif,
+    fontSize: 17,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  modalBtn: {
+    flex: 1,
+    borderRadius: 14,
+    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  statCardHighlight: {
-    backgroundColor: newPalette.card, // White background to pop
+  modalBtnGhost: {
+    backgroundColor: newPalette.surface,
+    borderWidth: 1,
+    borderColor: 'rgba(123, 17, 31, 0.2)',
   },
-  statLabel: {
-    fontSize: 12,
-    color: newPalette.muted,
-    fontFamily: typography.serif,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: 4,
-    fontWeight: '600',
-  },
-  statValue: {
-    fontSize: 32,
+  modalBtnGhostText: {
     color: newPalette.text,
+    fontFamily: typography.serif,
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  modalBtnPrimary: {
+    backgroundColor: newPalette.accent,
+  },
+  modalBtnPrimaryText: {
+    color: newPalette.buttonText,
+    fontFamily: typography.serif,
     fontWeight: '800',
-    fontFamily: typography.serif,
+    fontSize: 16,
   },
-
-  // List Text
-  listTitle: {
+  scannerBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(79, 13, 23, 0.35)',
+    justifyContent: 'center',
+    padding: spacing.lg,
+  },
+  scannerCard: {
+    backgroundColor: newPalette.card,
+    borderRadius: 24,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(123, 17, 31, 0.16)',
+    gap: spacing.md,
+  },
+  scannerTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  scannerTitle: {
     color: newPalette.text,
     fontFamily: typography.serif,
+    fontWeight: '800',
+    fontSize: 22,
+  },
+  scannerCloseBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: newPalette.surface,
+    borderWidth: 1,
+    borderColor: 'rgba(123, 17, 31, 0.18)',
+  },
+  scannerCloseIcon: {
+    color: newPalette.text,
     fontSize: 18,
-    fontWeight: '800',
-    marginBottom: 4,
-  },
-  emptyText: {
-    color: newPalette.muted,
     fontFamily: typography.serif,
+    fontWeight: '700',
+  },
+  scannerViewport: {
+    height: 320,
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+  },
+  camera: {
+    flex: 1,
+  },
+  recordingIndicator: {
+    position: 'absolute',
+    left: spacing.lg,
+    right: spacing.lg,
+    bottom: spacing.xl,
+    backgroundColor: newPalette.accent,
+    borderRadius: 16,
+    paddingVertical: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
+  recordingIndicatorText: {
+    color: newPalette.buttonText,
+    fontFamily: typography.serif,
+    fontWeight: '700',
     fontSize: 14,
   },
 });
