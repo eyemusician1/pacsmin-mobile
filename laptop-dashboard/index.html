@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pacsmin Live Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="background-glow top"></div>
+    <div class="background-glow bottom"></div>
+
+    <main class="app-shell">
+      <header class="app-header glass">
+        <div>
+          <p class="eyebrow">PACSMin Admin</p>
+          <h1>Laptop Live Dashboard</h1>
+          <p class="subtitle">Realtime attendance, food, and bundle updates from mobile scans.</p>
+        </div>
+        <button id="logoutBtn" class="btn secondary hidden" type="button">Logout</button>
+      </header>
+
+      <section id="loginSection" class="panel glass">
+        <h2>Admin Login</h2>
+        <p class="panel-copy">Use the same Supabase admin account as your mobile app.</p>
+        <form id="loginForm" class="form-grid">
+          <label>
+            <span>Email</span>
+            <input id="emailInput" type="email" placeholder="admin@email.com" required />
+          </label>
+          <label>
+            <span>Password</span>
+            <input id="passwordInput" type="password" placeholder="Password" required />
+          </label>
+          <button class="btn primary" type="submit">Login</button>
+        </form>
+        <p id="loginStatus" class="status"></p>
+      </section>
+
+      <section id="dashboardSection" class="hidden">
+        <div class="cards-grid">
+          <article class="metric-card glass">
+            <p>Total Participants</p>
+            <h3 id="totalParticipants">0</h3>
+          </article>
+          <article class="metric-card glass">
+            <p>Attendance Today</p>
+            <h3 id="attendanceToday">0</h3>
+          </article>
+          <article class="metric-card glass">
+            <p>Food Today</p>
+            <h3 id="foodToday">0</h3>
+          </article>
+          <article class="metric-card glass">
+            <p>Bundle Today</p>
+            <h3 id="bundleToday">0</h3>
+          </article>
+        </div>
+
+        <section class="panel glass">
+          <div class="panel-title-row">
+            <h2>Recent Activity</h2>
+            <p id="lastUpdated">Waiting for updates...</p>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Type</th>
+                  <th>UID</th>
+                  <th>Name</th>
+                  <th>Society</th>
+                  <th>Detail</th>
+                </tr>
+              </thead>
+              <tbody id="recentBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

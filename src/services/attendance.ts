@@ -213,7 +213,7 @@ export async function recordAttendanceByUid(
       .single<ParticipantRow>();
 
     if (participantError || !participant) {
-      throw new Error('Participant not found.');
+      throw new Error(`Participant not found for UID: ${cleanUid}`);
     }
 
     const {data: existing, error: existingError} = await supabase

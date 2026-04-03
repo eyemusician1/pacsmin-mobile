@@ -1,0 +1,250 @@
+:root {
+  --bg: #f6efe4;
+  --surface: #fffaf1;
+  --surface-2: #fff6ea;
+  --ink: #431019;
+  --muted: #8c6a47;
+  --line: rgba(123, 17, 31, 0.14);
+  --accent: #7b111f;
+  --accent-2: #b48145;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Manrope, sans-serif;
+  color: var(--ink);
+  background: radial-gradient(1400px 800px at 20% -10%, rgba(180, 129, 69, 0.18), transparent 55%),
+    radial-gradient(1200px 900px at 90% 20%, rgba(123, 17, 31, 0.14), transparent 50%), var(--bg);
+  min-height: 100vh;
+}
+
+.background-glow {
+  position: fixed;
+  border-radius: 999px;
+  filter: blur(50px);
+  pointer-events: none;
+}
+
+.background-glow.top {
+  width: 420px;
+  height: 420px;
+  right: -140px;
+  top: -180px;
+  background: rgba(123, 17, 31, 0.2);
+}
+
+.background-glow.bottom {
+  width: 360px;
+  height: 360px;
+  left: -120px;
+  bottom: -120px;
+  background: rgba(180, 129, 69, 0.22);
+}
+
+.app-shell {
+  width: min(1200px, calc(100% - 32px));
+  margin: 20px auto 36px;
+  position: relative;
+  z-index: 1;
+}
+
+.glass {
+  background: linear-gradient(145deg, rgba(255, 252, 246, 0.92), rgba(255, 247, 236, 0.95));
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  box-shadow: 0 20px 44px rgba(70, 20, 22, 0.08);
+}
+
+.app-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  padding: 22px 24px;
+  margin-bottom: 16px;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 1.2px;
+  font-weight: 800;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 4px 0 8px;
+  font-size: clamp(26px, 3vw, 38px);
+  line-height: 1.05;
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.panel {
+  padding: 22px;
+}
+
+.panel h2 {
+  margin: 0 0 8px;
+}
+
+.panel-copy {
+  margin-top: 0;
+  color: var(--muted);
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+input {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--ink);
+  padding: 12px;
+  font-family: inherit;
+}
+
+.btn {
+  border: none;
+  border-radius: 12px;
+  padding: 11px 16px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btn.primary {
+  background: linear-gradient(120deg, var(--accent), #5f0d17);
+  color: #fff9f0;
+}
+
+.btn.secondary {
+  background: var(--surface-2);
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+
+.status {
+  min-height: 20px;
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.metric-card {
+  padding: 16px;
+}
+
+.metric-card p {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.metric-card h3 {
+  margin: 8px 0 0;
+  font-size: 30px;
+}
+
+.panel-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.panel-title-row p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.table-wrap {
+  overflow: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 760px;
+}
+
+th,
+td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  font-size: 13px;
+}
+
+th {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.hidden {
+  display: none;
+}
+
+.type-pill {
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 800;
+  display: inline-block;
+}
+
+.type-attendance {
+  background: rgba(123, 17, 31, 0.12);
+  color: #7b111f;
+}
+
+.type-food {
+  background: rgba(180, 129, 69, 0.16);
+  color: #704915;
+}
+
+.type-bundle {
+  background: rgba(84, 119, 57, 0.16);
+  color: #3b5e24;
+}
+
+@media (max-width: 900px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cards-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

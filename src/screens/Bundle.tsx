@@ -12,11 +12,11 @@ import {
 } from 'react-native';
 import {Camera, CameraType} from 'react-native-camera-kit';
 import {
-  getAttendanceSummary,
-  recordAttendanceByUid,
-  resolveUidFromScan,
-  type AttendanceSummary,
-} from '../services/attendance';
+  getBundleSummary,
+  recordBundleByUid,
+  type ChoiceSummary,
+} from '../services/choiceRecords';
+import {resolveUidFromScan} from '../services/attendance';
 import {spacing, typography} from '../tokens';
 
 const newPalette = {
@@ -35,19 +35,17 @@ export function ProfileScreen() {
   const [uidInput, setUidInput] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [lastScanText, setLastScanText] = useState('No participant scanned yet.');
-  const [summary, setSummary] = useState<AttendanceSummary>({
+  const [summary, setSummary] = useState<ChoiceSummary>({
     totalParticipants: 0,
-    present: 0,
-    absent: 0,
-    morning: 0,
-    afternoon: 0,
+    recorded: 0,
+    pending: 0,
   });
 
   const scanLockRef = useRef(false);
 
   const loadSummary = useCallback(async () => {
     try {
-      const next = await getAttendanceSummary();
+      const next = await getBundleSummary();
       setSummary(next);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to load records.';
@@ -70,9 +68,9 @@ export function ProfileScreen() {
       setIsRecording(true);
 
       try {
-        const result = await recordAttendanceByUid(uid);
+        const result = await recordBundleByUid(uid);
         const label = result.status === 'recorded' ? 'Recorded' : 'Already marked';
-        setLastScanText(`${label}: ${result.fullName} (${result.uid})`);
+        setLastScanText(`${label}: ${result.fullName} (${result.uid}) • ${result.choice}`);
         await loadSummary();
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to record UID.';
@@ -152,7 +150,7 @@ export function ProfileScreen() {
         <View style={[styles.bentoCard, styles.counterSection]}>
           <Text style={styles.sectionTitle}>Scanned Session</Text>
           <View style={styles.badge}>
-            <Text style={styles.badgeText}>{summary.morning + summary.afternoon} records</Text>
+            <Text style={styles.badgeText}>{summary.recorded} / {summary.totalParticipants} records</Text>
           </View>
         </View>
       </View>
