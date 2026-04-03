@@ -29,6 +29,14 @@ const newPalette = {
   buttonText: '#FFF8EF',
 };
 
+type ScanChecklistItem = {
+  uid: string;
+  fullName: string;
+  choice: string;
+  status: 'recorded' | 'already';
+  timeLabel: string;
+};
+
 export function ProfileScreen() {
   const [showScannerModal, setShowScannerModal] = useState(false);
   const [showUidModal, setShowUidModal] = useState(false);
@@ -40,6 +48,7 @@ export function ProfileScreen() {
     recorded: 0,
     pending: 0,
   });
+  const [recentChecks, setRecentChecks] = useState<ScanChecklistItem[]>([]);
 
   const scanLockRef = useRef(false);
 
@@ -69,8 +78,18 @@ export function ProfileScreen() {
 
       try {
         const result = await recordBundleByUid(uid);
-        const label = result.status === 'recorded' ? 'Recorded' : 'Already marked';
+        const label = result.status === 'recorded' ? 'Checked' : 'Already checked';
         setLastScanText(`${label}: ${result.fullName} (${result.uid}) • ${result.choice}`);
+        setRecentChecks(previous => [
+          {
+            uid: result.uid,
+            fullName: result.fullName,
+            choice: result.choice,
+            status: result.status,
+            timeLabel: new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}),
+          },
+          ...previous,
+        ].slice(0, 4));
         await loadSummary();
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to record UID.';
@@ -148,10 +167,26 @@ export function ProfileScreen() {
 
         {/* Counter Bento (Added to perfectly match the Food Tab layout) */}
         <View style={[styles.bentoCard, styles.counterSection]}>
-          <Text style={styles.sectionTitle}>Scanned Session</Text>
+          <Text style={styles.sectionTitle}>Checklist</Text>
           <View style={styles.badge}>
-            <Text style={styles.badgeText}>{summary.recorded} / {summary.totalParticipants} records</Text>
+            <Text style={styles.badgeText}>{summary.recorded} / {summary.totalParticipants} checked</Text>
           </View>
+
+          {recentChecks.length ? (
+            <View style={styles.checklistWrap}>
+              {recentChecks.map(item => (
+                <View style={styles.checklistRow} key={`${item.uid}-${item.timeLabel}`}>
+                  <Text style={styles.checklistMark}>{item.status === 'recorded' ? '[x]' : '[=]'}</Text>
+                  <View style={styles.checklistMeta}>
+                    <Text style={styles.checklistName} numberOfLines={1}>{item.fullName}</Text>
+                    <Text style={styles.checklistSub} numberOfLines={1}>{item.uid} • {item.choice} • {item.timeLabel}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.emptyText}>No checked entries yet.</Text>
+          )}
         </View>
       </View>
 
@@ -299,8 +334,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   counterSection: {
-    flex: 0.8,
-    justifyContent: 'center',
+    flex: 1.2,
   },
 
   // Text Styles
@@ -383,6 +417,41 @@ const styles = StyleSheet.create({
     fontFamily: typography.serif,
     fontWeight: '700',
     fontSize: 15,
+  },
+  checklistWrap: {
+    marginTop: spacing.sm,
+    gap: spacing.xs,
+  },
+  checklistRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: newPalette.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(123, 17, 31, 0.14)',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  checklistMark: {
+    color: newPalette.accent,
+    fontFamily: typography.serif,
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  checklistMeta: {
+    flex: 1,
+  },
+  checklistName: {
+    color: newPalette.text,
+    fontFamily: typography.serif,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  checklistSub: {
+    color: newPalette.muted,
+    fontFamily: typography.serif,
+    fontSize: 12,
   },
   modalBackdrop: {
     flex: 1,

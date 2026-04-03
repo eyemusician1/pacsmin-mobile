@@ -50,6 +50,25 @@ let cachedCounts = {
   foodToday: 0,
   bundleToday: 0,
 };
+let realtimeChannel = null;
+let reconnectTimer = null;
+let fallbackPollTimer = null;
+let refreshQueued = false;
+let refreshInFlight = null;
+const FALLBACK_POLL_MS = 12000;
+
+function queueRefresh() {
+  if (refreshQueued) return;
+  refreshQueued = true;
+  window.setTimeout(async () => {
+    refreshQueued = false;
+    if (refreshInFlight) return;
+    refreshInFlight = refreshAll().finally(() => {
+      refreshInFlight = null;
+    });
+    await refreshInFlight;
+  }, 180);
+}
 
 function getCurrentManilaDate() {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -488,7 +507,31 @@ async function refreshAll() {
   }
 }
 
-let realtimeChannel = null;
+function startFallbackPolling() {
+  if (fallbackPollTimer) return;
+  fallbackPollTimer = window.setInterval(() => {
+    if (!dashboardSection.classList.contains('hidden')) {
+      queueRefresh();
+    }
+  }, FALLBACK_POLL_MS);
+}
+
+function stopFallbackPolling() {
+  if (fallbackPollTimer) {
+    window.clearInterval(fallbackPollTimer);
+    fallbackPollTimer = null;
+  }
+}
+
+function scheduleRealtimeReconnect() {
+  if (reconnectTimer) return;
+  reconnectTimer = window.setTimeout(() => {
+    reconnectTimer = null;
+    if (!dashboardSection.classList.contains('hidden')) {
+      startRealtime();
+    }
+  }, 2200);
+}
 
 function startRealtime() {
   if (realtimeChannel) {
@@ -497,17 +540,36 @@ function startRealtime() {
   }
   realtimeChannel = sbClient
     .channel('dashboard-live-updates')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_records' }, refreshAll)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'food_choices' }, refreshAll)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'bundle_choices' }, refreshAll)
-    .subscribe();
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'participants' }, queueRefresh)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_records' }, queueRefresh)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'food_choices' }, queueRefresh)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'bundle_choices' }, queueRefresh)
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        queueRefresh();
+      }
+
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        lastUpdated.textContent = 'Realtime reconnecting...';
+        scheduleRealtimeReconnect();
+      }
+    });
+
+  startFallbackPolling();
 }
 
 function stopRealtime() {
+  if (reconnectTimer) {
+    window.clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+
   if (realtimeChannel) {
     sbClient.removeChannel(realtimeChannel);
     realtimeChannel = null;
   }
+
+  stopFallbackPolling();
 }
 
 if (activitySearch) {
@@ -612,3 +674,9 @@ logoutBtn.addEventListener('click', async () => {
     setStatus('Could not restore session. Please log in.', true);
   }
 })();
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && !dashboardSection.classList.contains('hidden')) {
+    queueRefresh();
+  }
+});
