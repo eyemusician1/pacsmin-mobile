@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pacsmin Live Dashboard</title>
+    <title>Pacsmin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -46,9 +46,17 @@
 
       <form id="loginForm" class="genie-login-form" novalidate>
         <input id="emailInput" type="email" placeholder="admin@email.com" />
-        <input id="passwordInput" type="password" placeholder="Password" />
+        <div class="password-wrap">
+          <input id="passwordInput" type="password" placeholder="Password" />
+          <button id="togglePasswordBtn" class="password-toggle" type="button" aria-label="Show password">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </button>
+        </div>
         <button class="btn primary genie-btn" type="submit">Launch Dashboard</button>
-        <p id="loginStatus" class="status"></p>
+        <p id="loginStatus" class="status hidden"></p>
       </form>
 
       <div class="genie-footer-links">
@@ -82,11 +90,80 @@
         </article>
       </div>
 
+      <div class="insights-grid">
+        <section class="insight-panel glass">
+          <div class="panel-title-row compact">
+            <h2>Society Leaderboard</h2>
+            <p>Today</p>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Rank</th>
+                  <th>Society</th>
+                  <th>Total</th>
+                  <th>Attend</th>
+                  <th>Food</th>
+                  <th>Bundle</th>
+                </tr>
+              </thead>
+              <tbody id="leaderboardBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="insight-panel glass">
+          <div class="panel-title-row compact">
+            <h2>7-Day Progress</h2>
+            <p id="trendLabel">Last 7 days</p>
+          </div>
+          <div class="progress-wrap">
+            <div class="progress-item">
+              <div class="progress-head"><span>Attendance</span><strong id="attendancePct">0%</strong></div>
+              <div class="progress-bar"><span id="attendanceBar"></span></div>
+            </div>
+            <div class="progress-item">
+              <div class="progress-head"><span>Food</span><strong id="foodPct">0%</strong></div>
+              <div class="progress-bar"><span id="foodBar"></span></div>
+            </div>
+            <div class="progress-item">
+              <div class="progress-head"><span>Bundle</span><strong id="bundlePct">0%</strong></div>
+              <div class="progress-bar"><span id="bundleBar"></span></div>
+            </div>
+          </div>
+          <svg id="trendSparkline" class="trend-sparkline" viewBox="0 0 420 130" preserveAspectRatio="none"></svg>
+          <div class="trend-legend">
+            <span class="legend-attendance">Attendance</span>
+            <span class="legend-food">Food</span>
+            <span class="legend-bundle">Bundle</span>
+          </div>
+        </section>
+      </div>
+
       <section class="activity-panel glass">
         <div class="panel-title-row">
           <h2>Recent Activity</h2>
-          <p id="lastUpdated">Waiting for updates...</p>
+          <div class="panel-actions">
+            <p id="lastUpdated">Waiting for updates...</p>
+            <div class="export-group">
+              <button id="exportAttendanceBtn" type="button" class="btn ghost mini">Export Attendance</button>
+              <button id="exportFoodBtn" type="button" class="btn ghost mini">Export Food</button>
+              <button id="exportBundleBtn" type="button" class="btn ghost mini">Export Bundle</button>
+            </div>
+          </div>
         </div>
+
+        <div class="activity-filters">
+          <input id="activitySearch" type="text" placeholder="Search UID, name, or society" />
+          <select id="activityTypeFilter">
+            <option value="all">All types</option>
+            <option value="attendance">Attendance</option>
+            <option value="food">Food</option>
+            <option value="bundle">Bundle</option>
+          </select>
+        </div>
+
         <div class="table-wrap">
           <table>
             <thead>
