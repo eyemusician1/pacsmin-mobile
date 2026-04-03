@@ -25,6 +25,8 @@ create table if not exists public.food_choices (
   participant_id bigint not null references public.participants(id) on delete cascade,
   choice text not null,
   choice_date date not null default current_date,
+  claimed_at timestamptz,
+  claimed_by text,
   created_at timestamptz not null default now(),
   constraint food_choices_unique_per_day unique (participant_id, choice_date)
 );
@@ -34,6 +36,8 @@ create table if not exists public.bundle_choices (
   participant_id bigint not null references public.participants(id) on delete cascade,
   choice text not null,
   choice_date date not null default current_date,
+  claimed_at timestamptz,
+  claimed_by text,
   created_at timestamptz not null default now(),
   constraint bundle_choices_unique_per_day unique (participant_id, choice_date)
 );

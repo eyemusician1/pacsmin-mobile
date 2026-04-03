@@ -84,7 +84,11 @@ body {
   top: 0;
   left: 0;
   right: 0;
-  z-index: 100;
+  z-index: 1200;
+  background: linear-gradient(180deg, rgba(246, 239, 228, 0.96), rgba(246, 239, 228, 0.72));
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(123, 17, 31, 0.08);
+  transform: translateZ(0);
 }
 
 .logo {
@@ -291,7 +295,7 @@ body {
 /* ── Dashboard Layout ── */
 .app-shell {
   width: min(1200px, calc(100% - 32px));
-  margin: 120px auto 60px; /* Pushed down to clear topbar */
+  margin: 132px auto 60px; /* Pushed down to clear fixed topbar */
   position: relative;
   z-index: 10;
   flex: 1;

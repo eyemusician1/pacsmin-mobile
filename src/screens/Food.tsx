@@ -12,8 +12,10 @@ import {
 } from 'react-native';
 import {Camera, CameraType} from 'react-native-camera-kit';
 import {
+  getRecentFoodChecks,
   getFoodSummary,
   recordFoodByUid,
+  type RecentChoiceCheck,
   type ChoiceSummary,
 } from '../services/choiceRecords';
 import {resolveUidFromScan} from '../services/attendance';
@@ -35,7 +37,30 @@ type ScanChecklistItem = {
   choice: string;
   status: 'recorded' | 'already';
   timeLabel: string;
+  claimedBy: string;
 };
+
+function formatTimeLabel(iso: string) {
+  if (!iso) {
+    return '--:--';
+  }
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return iso;
+  }
+  return date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+}
+
+function mapRecentChecks(rows: RecentChoiceCheck[]): ScanChecklistItem[] {
+  return rows.map(row => ({
+    uid: row.uid,
+    fullName: row.fullName,
+    choice: row.choice,
+    status: 'recorded',
+    timeLabel: formatTimeLabel(row.claimedAt),
+    claimedBy: row.claimedBy,
+  }));
+}
 
 export function ExploreScreen() {
   const [showScannerModal, setShowScannerModal] = useState(false);
@@ -62,9 +87,19 @@ export function ExploreScreen() {
     }
   }, []);
 
+  const loadRecentChecks = useCallback(async () => {
+    try {
+      const recent = await getRecentFoodChecks();
+      setRecentChecks(mapRecentChecks(recent));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load checklist.';
+      setLastScanText(message);
+    }
+  }, []);
+
   useEffect(() => {
-    loadSummary();
-  }, [loadSummary]);
+    void Promise.all([loadSummary(), loadRecentChecks()]);
+  }, [loadRecentChecks, loadSummary]);
 
   const processUid = useCallback(
     async (rawValue: string) => {
@@ -86,11 +121,12 @@ export function ExploreScreen() {
             fullName: result.fullName,
             choice: result.choice,
             status: result.status,
-            timeLabel: new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}),
+            timeLabel: formatTimeLabel(result.claimedAt),
+            claimedBy: result.claimedBy,
           },
           ...previous,
         ].slice(0, 4));
-        await loadSummary();
+        await Promise.all([loadSummary(), loadRecentChecks()]);
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to record UID.';
         setLastScanText(message);
@@ -101,7 +137,7 @@ export function ExploreScreen() {
         }, 900);
       }
     },
-    [loadSummary],
+    [loadRecentChecks, loadSummary],
   );
 
   const openScanner = async () => {
@@ -179,7 +215,10 @@ export function ExploreScreen() {
                   <Text style={styles.checklistMark}>{item.status === 'recorded' ? '[x]' : '[=]'}</Text>
                   <View style={styles.checklistMeta}>
                     <Text style={styles.checklistName} numberOfLines={1}>{item.fullName}</Text>
-                    <Text style={styles.checklistSub} numberOfLines={1}>{item.uid} • {item.choice} • {item.timeLabel}</Text>
+                    <Text style={styles.checklistSub} numberOfLines={1}>
+                      {item.uid} • {item.choice} • {item.timeLabel}
+                      {item.claimedBy ? ` • ${item.claimedBy}` : ''}
+                    </Text>
                   </View>
                 </View>
               ))}

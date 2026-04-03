@@ -1,10 +1,17 @@
 import {supabase} from './supabase/client';
 
 const PARTICIPANTS_TABLE = 'participants';
+const DEFAULT_RECENT_LIMIT = 6;
 
 type ParticipantRow = {
   id: number;
   unique_id: string;
+  full_name: string | null;
+  society: string | null;
+};
+
+type ParticipantMini = {
+  unique_id: string | null;
   full_name: string | null;
   society: string | null;
 };
@@ -21,6 +28,17 @@ export type ChoiceRecordResult = {
   fullName: string;
   society: string;
   choice: string;
+  claimedAt: string;
+  claimedBy: string;
+};
+
+export type RecentChoiceCheck = {
+  uid: string;
+  fullName: string;
+  society: string;
+  choice: string;
+  claimedAt: string;
+  claimedBy: string;
 };
 
 const EMPTY_SUMMARY: ChoiceSummary = {
@@ -49,6 +67,91 @@ function isMissingTableError(message: string): boolean {
   const normalized = message.toLowerCase();
   return normalized.includes('could not find the table') ||
     (normalized.includes('relation') && normalized.includes('does not exist'));
+}
+
+function isMissingColumnError(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return normalized.includes('column') && normalized.includes('does not exist');
+}
+
+async function getClaimSource(): Promise<string | null> {
+  try {
+    const {data, error} = await supabase.auth.getSession();
+    if (error) {
+      return null;
+    }
+    return data.session?.user?.email ?? data.session?.user?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function getRecentChecks(
+  tableName: 'food_choices' | 'bundle_choices',
+  date = getCurrentManilaDate(),
+  limit = DEFAULT_RECENT_LIMIT,
+): Promise<RecentChoiceCheck[]> {
+  const readParticipant = (value: ParticipantMini | ParticipantMini[] | null | undefined): ParticipantMini | null => {
+    if (!value) return null;
+    return Array.isArray(value) ? (value[0] ?? null) : value;
+  };
+
+  try {
+    const {data, error} = await supabase
+      .from(tableName)
+      .select('choice,claimed_at,claimed_by,created_at,participants(unique_id,full_name,society)')
+      .eq('choice_date', date)
+      .order('claimed_at', {ascending: false})
+      .limit(limit);
+
+    if (error) {
+      throw error;
+    }
+
+    return (data ?? []).map(row => {
+      const participant = readParticipant(row.participants);
+      return {
+        uid: participant?.unique_id ?? '',
+        fullName: participant?.full_name ?? 'Unknown',
+        society: participant?.society ?? '',
+        choice: row.choice ?? '',
+        claimedAt: row.claimed_at ?? row.created_at ?? '',
+        claimedBy: row.claimed_by ?? '',
+      };
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to load checklist.';
+    if (!isMissingColumnError(message)) {
+      if (isMissingTableError(message)) {
+        return [];
+      }
+      throw new Error(message);
+    }
+
+    // Backward compatibility for databases that have not applied claim columns yet.
+    const {data: fallbackRows, error: fallbackError} = await supabase
+      .from(tableName)
+      .select('choice,created_at,participants(unique_id,full_name,society)')
+      .eq('choice_date', date)
+      .order('created_at', {ascending: false})
+      .limit(limit);
+
+    if (fallbackError) {
+      throw new Error(fallbackError.message);
+    }
+
+    return (fallbackRows ?? []).map(row => {
+      const participant = readParticipant(row.participants);
+      return {
+        uid: participant?.unique_id ?? '',
+        fullName: participant?.full_name ?? 'Unknown',
+        society: participant?.society ?? '',
+        choice: row.choice ?? '',
+        claimedAt: row.created_at ?? '',
+        claimedBy: '',
+      };
+    });
+  }
 }
 
 async function getChoiceSummary(tableName: 'food_choices' | 'bundle_choices', date = getCurrentManilaDate()): Promise<ChoiceSummary> {
@@ -116,17 +219,62 @@ async function recordChoiceByUid(
 
   const {data: existing, error: existingError} = await supabase
     .from(tableName)
-    .select('choice')
+    .select('choice,claimed_at,claimed_by,created_at')
     .eq('participant_id', participant.id)
     .eq('choice_date', date)
-    .maybeSingle<{choice: string | null}>();
+    .maybeSingle<{choice: string | null; claimed_at: string | null; claimed_by: string | null; created_at: string | null}>();
 
   if (existingError) {
     const msg = existingError.message;
     if (isMissingTableError(msg)) {
       throw new Error(`Table ${tableName} is not configured yet.`);
     }
-    throw new Error(msg);
+    if (!isMissingColumnError(msg)) {
+      throw new Error(msg);
+    }
+
+    const {data: existingFallback, error: fallbackError} = await supabase
+      .from(tableName)
+      .select('choice,created_at')
+      .eq('participant_id', participant.id)
+      .eq('choice_date', date)
+      .maybeSingle<{choice: string | null; created_at: string | null}>();
+
+    if (fallbackError) {
+      throw new Error(fallbackError.message);
+    }
+
+    if (existingFallback) {
+      return {
+        status: 'already',
+        uid: participant.unique_id,
+        fullName: participant.full_name ?? 'Unknown',
+        society: participant.society ?? '',
+        choice: existingFallback.choice ?? defaultChoice,
+        claimedAt: existingFallback.created_at ?? '',
+        claimedBy: '',
+      };
+    }
+
+    const {error: insertFallbackError} = await supabase.from(tableName).insert({
+      participant_id: participant.id,
+      choice_date: date,
+      choice: defaultChoice,
+    });
+
+    if (insertFallbackError) {
+      throw new Error(insertFallbackError.message);
+    }
+
+    return {
+      status: 'recorded',
+      uid: participant.unique_id,
+      fullName: participant.full_name ?? 'Unknown',
+      society: participant.society ?? '',
+      choice: defaultChoice,
+      claimedAt: new Date().toISOString(),
+      claimedBy: '',
+    };
   }
 
   if (existing) {
@@ -136,13 +284,20 @@ async function recordChoiceByUid(
       fullName: participant.full_name ?? 'Unknown',
       society: participant.society ?? '',
       choice: existing.choice ?? defaultChoice,
+      claimedAt: existing.claimed_at ?? existing.created_at ?? '',
+      claimedBy: existing.claimed_by ?? '',
     };
   }
+
+  const claimedAt = new Date().toISOString();
+  const claimedBy = await getClaimSource();
 
   const {error: insertError} = await supabase.from(tableName).insert({
     participant_id: participant.id,
     choice_date: date,
     choice: defaultChoice,
+    claimed_at: claimedAt,
+    claimed_by: claimedBy,
   });
 
   if (insertError) {
@@ -155,6 +310,8 @@ async function recordChoiceByUid(
     fullName: participant.full_name ?? 'Unknown',
     society: participant.society ?? '',
     choice: defaultChoice,
+    claimedAt,
+    claimedBy: claimedBy ?? '',
   };
 }
 
@@ -172,4 +329,12 @@ export function recordFoodByUid(uid: string, date?: string) {
 
 export function recordBundleByUid(uid: string, date?: string) {
   return recordChoiceByUid('bundle_choices', uid, 'Bundle Verified', date);
+}
+
+export function getRecentFoodChecks(date?: string, limit?: number) {
+  return getRecentChecks('food_choices', date, limit);
+}
+
+export function getRecentBundleChecks(date?: string, limit?: number) {
+  return getRecentChecks('bundle_choices', date, limit);
 }

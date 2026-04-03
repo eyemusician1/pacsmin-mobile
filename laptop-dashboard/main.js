@@ -437,7 +437,7 @@ async function exportToday(tableType) {
 
   if (tableType === 'attendance') {
     const { data, error } = await sbClient.from('attendance_records')
-      .select('attendance_date,time_in,created_at,participants(unique_id,full_name,society,year_level)')
+      .select('attendance_date,time_in,created_at,participants(unique_id,full_name,society)')
       .eq('attendance_date', date)
       .order('created_at', { ascending: false });
     if (error) throw new Error(error.message);
@@ -449,16 +449,15 @@ async function exportToday(tableType) {
       unique_id: row.participants?.unique_id ?? '',
       full_name: row.participants?.full_name ?? '',
       society: row.participants?.society ?? '',
-      year_level: row.participants?.year_level ?? '',
     }));
 
-    triggerCsvDownload(`attendance_${date}.csv`, ['attendance_date', 'time_in', 'created_at', 'unique_id', 'full_name', 'society', 'year_level'], rows);
+    triggerCsvDownload(`attendance_${date}.csv`, ['attendance_date', 'time_in', 'created_at', 'unique_id', 'full_name', 'society'], rows);
     return;
   }
 
   if (tableType === 'food') {
     const { data, error } = await sbClient.from('food_choices')
-      .select('choice_date,choice,created_at,participants(unique_id,full_name,society,year_level)')
+      .select('choice_date,choice,created_at,participants(unique_id,full_name,society)')
       .eq('choice_date', date)
       .order('created_at', { ascending: false });
     if (error) throw new Error(error.message);
@@ -470,15 +469,14 @@ async function exportToday(tableType) {
       unique_id: row.participants?.unique_id ?? '',
       full_name: row.participants?.full_name ?? '',
       society: row.participants?.society ?? '',
-      year_level: row.participants?.year_level ?? '',
     }));
 
-    triggerCsvDownload(`food_${date}.csv`, ['choice_date', 'choice', 'created_at', 'unique_id', 'full_name', 'society', 'year_level'], rows);
+    triggerCsvDownload(`food_${date}.csv`, ['choice_date', 'choice', 'created_at', 'unique_id', 'full_name', 'society'], rows);
     return;
   }
 
   const { data, error } = await sbClient.from('bundle_choices')
-    .select('choice_date,choice,created_at,participants(unique_id,full_name,society,year_level)')
+    .select('choice_date,choice,created_at,participants(unique_id,full_name,society)')
     .eq('choice_date', date)
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
@@ -490,10 +488,9 @@ async function exportToday(tableType) {
     unique_id: row.participants?.unique_id ?? '',
     full_name: row.participants?.full_name ?? '',
     society: row.participants?.society ?? '',
-    year_level: row.participants?.year_level ?? '',
   }));
 
-  triggerCsvDownload(`bundle_${date}.csv`, ['choice_date', 'choice', 'created_at', 'unique_id', 'full_name', 'society', 'year_level'], rows);
+  triggerCsvDownload(`bundle_${date}.csv`, ['choice_date', 'choice', 'created_at', 'unique_id', 'full_name', 'society'], rows);
 }
 
 async function refreshAll() {
